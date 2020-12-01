@@ -4,7 +4,7 @@ import toml
 import argparse
 from .markusmoss import MarkusMoss
 
-DEFAULTRC = ".markusmossrc"
+DEFAULTRC = "markusmossrc"
 
 
 def _parse_config(pre_args):

@@ -10,7 +10,7 @@ pip install git+https://github.com/MarkUsProject/markus-moss.git
 
 Optional External Dependencies:
 
-- [pandoc](https://pandoc.org/) (required for `copy_submission_files_to_pdf` action)
+- [pandoc](https://pandoc.org/) (required for `copy_files_to_pdf` action)
 
 ### Usage
 
@@ -73,7 +73,7 @@ Note that the config file uses underscores instead of hyphens.
         * markus-api-key
         * markus-url
         * markus-assignment
-* copy_submission_files_to_pdf
+* copy_files_to_pdf
     * Copy the files in the `submission_files` subdirectory to the `pdf_submission_files` subdirectory
     * depends on:
         * download_submission_files
@@ -108,7 +108,7 @@ Note that the config file uses underscores instead of hyphens.
 * write_final_report
     * Compile moss report (see report format below) to `final_report`
     * depends on:
-        * copy_submission_files_to_pdf
+        * copy_files_to_pdf
         * download_moss_report
     * required arguments:
         * workdir

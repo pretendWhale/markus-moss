@@ -29,8 +29,8 @@ class MarkusMoss:
     PRINT_PREFIX: ClassVar[str] = "[MARKUSMOSS]"
     ACTIONS: ClassVar[Tuple[str]] = (
         "download_submission_files",
-        "copy_submission_files_to_pdf",
         "download_starter_files",
+        "copy_files_to_pdf",
         "run_moss",
         "download_moss_report",
         "write_final_report",
@@ -84,42 +84,24 @@ class MarkusMoss:
             self._print(f"Downloading submission files for group: {data['group_name']}")
             zip_byte_stream = self.api.get_files_from_repo(self._assignment_id, data["id"], collected=True)
             if not isinstance(zip_byte_stream, bytes):
-                sys.stderr.write(f"{zip_byte_stream}\n")
+                sys.stderr.write(f"[MARKUSAPI ERROR]{zip_byte_stream}\n")
                 sys.stderr.flush()
                 continue
             self._unzip_file(zip_byte_stream, destination)
 
-    def copy_submission_files_to_pdf(self) -> None:
-        for source_file in glob.iglob(os.path.join(self.submission_files_dir, "*", self.file_glob), recursive=True):
-            rel_source = os.path.relpath(source_file, self.submission_files_dir)
-            rel_destination = self._source_file_to_pdf(rel_source)
-            abs_destination = os.path.join(self.pdf_submission_files_dir, rel_destination)
-            if not os.path.isfile(source_file) or (os.path.isfile(abs_destination) and not self.force):
-                continue
-            self._print(f"Converting {rel_source} to pdf: {rel_destination}")
-            os.makedirs(os.path.dirname(abs_destination), exist_ok=True)
-            proc = subprocess.Popen(
-                [self._pandoc, "-o", abs_destination],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            with open(source_file, "rb") as f:
-                content = b"```%b\n%b\n```" % (self.language.encode(), f.read())
-            _out, err = proc.communicate(content)
-            if proc.returncode != 0:
-                sys.stderr.write(f"{err}\n")
-                sys.stderr.flush()
+    def copy_files_to_pdf(self) -> None:
+        self._copy_files_to_pdf(self.submission_files_dir, self.pdf_submission_files_dir)
+        self._copy_files_to_pdf(self.org_starter_files_dir, self.pdf_starter_files_dir)
 
     def download_starter_files(self) -> None:
         for group_data in self._starter_file_groups:
-            destination = os.path.join(self.starter_files_dir, str(group_data["id"]))
+            destination = os.path.join(self.org_starter_files_dir, str(group_data["id"]))
             if os.path.isdir(destination) and not self.force:
                 continue
             self._print(f"Downloading starter files for starter_group with id: {group_data['id']}")
             zip_byte_stream = self.api.download_starter_file_entries(self._assignment_id, group_data["id"])
             if not isinstance(zip_byte_stream, bytes):
-                sys.stderr.write(f"{zip_byte_stream}\n")
+                sys.stderr.write(f"[MARKUSAPI ERROR] {zip_byte_stream}\n")
                 sys.stderr.flush()
                 continue
             self._unzip_file(zip_byte_stream, destination)
@@ -127,7 +109,7 @@ class MarkusMoss:
     def run_moss(self) -> None:
         if os.path.isfile(self.moss_report_url_file) and not self.force:
             return
-        starter_files = glob.glob(os.path.join(self.starter_files_dir, "*", self.file_glob), recursive=True)
+        starter_files = glob.glob(os.path.join(self.org_starter_files_dir, "*", self.file_glob), recursive=True)
         for i, filename in enumerate(starter_files):
             self._print(f"Sending starter files to MOSS {i+1}/{len(starter_files)}", end="\r")
             self.moss.addBaseFile(filename, os.path.relpath(filename, self.workdir))
@@ -154,6 +136,8 @@ class MarkusMoss:
         assignment_report_dir = os.path.join(self.final_report_dir, self.markus_assignment)
         if not os.path.isdir(assignment_report_dir) or self.force:
             self._print(f"Organizing final report for assignment: {self.markus_assignment}")
+            os.makedirs(assignment_report_dir, exist_ok=True)
+            self._copy_starter_files(assignment_report_dir)
             with open(os.path.join(assignment_report_dir, self.FINAL_REPORT_CASE_OVERVIEW), "w") as overview_f:
                 overview_writer = csv.writer(overview_f)
                 overview_writer.writerow(self.OVERVIEW_INFO)
@@ -226,6 +210,14 @@ class MarkusMoss:
     @property
     def pdf_submission_files_dir(self) -> str:
         return os.path.join(self.workdir, self.PDF_SUBMISSION_FILES_DIR)
+
+    @property
+    def pdf_starter_files_dir(self) -> str:
+        return os.path.join(self.workdir, self.STARTER_FILES_DIR, 'pdf')
+
+    @property
+    def org_starter_files_dir(self) -> str:
+        return os.path.join(self.workdir, self.STARTER_FILES_DIR, 'org')
 
     @property
     def starter_files_dir(self) -> str:
@@ -323,9 +315,35 @@ class MarkusMoss:
                 members[data["group_name"]].append(user_info[user_id])
         return members
 
+    def _copy_files_to_pdf(self, source_dir: str, dest_dir: str) -> None:
+        for source_file in glob.iglob(os.path.join(source_dir, "*", self.file_glob), recursive=True):
+            rel_source = os.path.relpath(source_file, source_dir)
+            rel_destination = self._file_to_pdf(rel_source)
+            abs_destination = os.path.join(dest_dir, rel_destination)
+            if self._copy_file_to_pdf(source_file, abs_destination):
+                self._print(f"Converting {rel_source} to pdf: {rel_destination}")
+
+    def _copy_file_to_pdf(self, source_file: str, destination: str) -> bool:
+        if os.path.isfile(source_file) and (not os.path.isfile(destination) or self.force):
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            proc = subprocess.Popen(
+                [self._pandoc, "-V", "geometry:margin=1cm", "-o", destination],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            with open(source_file, "rb") as f:
+                content = b"```%b\n%b\n```" % (self.language.encode(), f.read())
+            _out, err = proc.communicate(content)
+            if proc.returncode != 0:
+                sys.stderr.write(f"[PANDOC ERROR]{err}\n")
+                sys.stderr.flush()
+            return True
+        return False
+
     def _parse_html_report(self) -> Iterator[Tuple[str, str, str, int, int]]:
         with open(os.path.join(self.moss_report_download_dir, "index.html")) as f:
-            parsed_html = bs4.BeautifulSoup(f.read(), features=self.html_parser)
+            parsed_html = bs4.BeautifulSoup(f, features=self.html_parser)
             for row in parsed_html.body.find("table").find_all("tr"):
                 if row.find("th"):
                     continue
@@ -339,7 +357,7 @@ class MarkusMoss:
     def _copy_submission_files(self, group: str, destination: str) -> None:
         for abs_file in glob.iglob(os.path.join(self.submission_files_dir, group, self.file_glob), recursive=True):
             rel_file = os.path.relpath(abs_file, self.submission_files_dir)
-            rel_pdf = self._source_file_to_pdf(rel_file)
+            rel_pdf = self._file_to_pdf(rel_file)
             abs_pdf = os.path.join(self.pdf_submission_files_dir, rel_pdf)
             file_dest = os.path.join(destination, group, "org", os.path.relpath(rel_file, group))
             pdf_dest = os.path.join(destination, group, "pdf", os.path.relpath(rel_pdf, group))
@@ -347,6 +365,9 @@ class MarkusMoss:
             os.makedirs(os.path.dirname(pdf_dest), exist_ok=True)
             self._copy_file(abs_file, file_dest)
             self._copy_file(abs_pdf, pdf_dest)
+
+    def _copy_starter_files(self, destination: str) -> None:
+        shutil.copytree(self.starter_files_dir, os.path.join(destination, self.STARTER_FILES_DIR), dirs_exist_ok=True)
 
     def _write_case_report(self, groups: Iterable[str], destination: str) -> None:
         for group in groups:
@@ -367,7 +388,7 @@ class MarkusMoss:
             sys.stderr.flush()
 
     @staticmethod
-    def _source_file_to_pdf(source: str) -> str:
+    def _file_to_pdf(source: str) -> str:
         return f"{source}.pdf"
 
     @staticmethod

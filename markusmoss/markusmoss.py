@@ -137,7 +137,8 @@ class MarkusMoss:
         if not os.path.isdir(assignment_report_dir) or self.force:
             self._print(f"Organizing final report for assignment: {self.markus_assignment}")
             os.makedirs(assignment_report_dir, exist_ok=True)
-            self._copy_starter_files(assignment_report_dir)
+            if os.path.isdir(self.starter_files_dir):
+                self._copy_starter_files(assignment_report_dir)
             with open(os.path.join(assignment_report_dir, self.FINAL_REPORT_CASE_OVERVIEW), "w") as overview_f:
                 overview_writer = csv.writer(overview_f)
                 overview_writer.writerow(self.OVERVIEW_INFO)
@@ -146,7 +147,8 @@ class MarkusMoss:
                     self._print(f"Creating report for groups {group1} and {group2} with {similarity}% similarity.")
                     case = f"case_{i+1}"
                     case_dir = os.path.join(assignment_report_dir, case)
-                    self._copy_moss_report(match_file, os.path.join(case_dir, f"moss_html"))
+                    os.makedirs(case_dir, exist_ok=True)
+                    self._copy_moss_report(match_file, os.path.join(case_dir, f"moss.html"))
                     groups = [group1, group2]
                     for group in groups:
                         self._copy_submission_files(group, case_dir)
@@ -391,13 +393,45 @@ class MarkusMoss:
     def _file_to_pdf(source: str) -> str:
         return f"{source}.pdf"
 
-    @staticmethod
-    def _copy_moss_report(base_html_file: str, destination: str) -> None:
-        os.makedirs(destination, exist_ok=True)
+    def _copy_moss_report(self, base_html_file: str, destination: str) -> None:
         base, _ = os.path.splitext(base_html_file)
-        shutil.copy(base_html_file, destination)
-        for filename in glob.iglob(f"{base}-*.html"):
-            shutil.copy(filename, destination)
+        base_basename = os.path.basename(base)
+        top = f"{base}-top.html"
+        with open(os.path.join(os.path.dirname(__file__), 'templates', 'report_template.html')) as f:
+            template = bs4.BeautifulSoup(f, features=self.html_parser)
+        with open(base_html_file) as f:
+            base_html = bs4.BeautifulSoup(f, features=self.html_parser)
+            title = base_html.head.find("title").text
+            template.head.find('title').string = title
+        with open(top) as f:
+            top_html = bs4.BeautifulSoup(f, features=self.html_parser)
+            table = top_html.body.find("center")
+            for a in table.find_all('a'):
+                match_file, match_num = re.match(rf'{base_basename}-([01])\.html#(\d+)', a["href"]).groups()
+                a["href"] = f"#match-{match_file}-{match_num}"
+                a["target"] = "_self"
+            top_div = template.body.find('div', {"id": "top"})
+            top_div.append(table)
+        for match_i in range(2):
+            match_file = f"{base}-{match_i}.html"
+            with open(match_file) as f:
+                match_html = bs4.BeautifulSoup(f, features=self.html_parser)
+                match_title = match_html.head.find("title").text
+                match_pre = match_html.body.find("pre")
+                for a in match_pre.find_all('a'):
+                    if a.get("href"):
+                        match_file, match_num = re.match(rf'{base_basename}-([01])\.html#(\d+)', a["href"]).groups()
+                        a["href"] = f"#match-{match_file}-{match_num}"
+                        a["target"] = "_self"
+                    if a.get("name"):
+                        a["id"] = f"match-{match_i}-{a['name']}"
+            match_div = template.body.find('div', {"id": f"match-{match_i}"})
+            file_title = template.new_tag('h3')
+            file_title.append(match_title)
+            match_div.append(file_title)
+            match_div.append(match_pre)
+        with open(destination, 'w') as f:
+            f.write(str(template))
 
     @staticmethod
     def _unzip_file(zip_byte_stream: bytes, destination: str) -> None:

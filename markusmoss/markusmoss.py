@@ -335,7 +335,7 @@ class MarkusMoss:
                 stderr=subprocess.PIPE,
             )
             with open(source_file, "rb") as f:
-                content = b"```%b\n%b\n```" % (self.language.encode(), f.read())
+                content = b"```{.%b .numberLines}\n%b\n```" % (self.language.encode(), f.read())
             _out, err = proc.communicate(content)
             if proc.returncode != 0:
                 sys.stderr.write(f"[PANDOC ERROR]{err}\n")

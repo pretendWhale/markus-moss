@@ -155,11 +155,7 @@ workdir/
 │       │   │   │   └── source_file.py
 │       │   │   └── pdf
 │       │   │       └── source_file.py.pdf
-│       │   └── moss_html
-│       │       ├── match1-0.html
-│       │       ├── match1-1.html
-│       │       ├── match1-top.html
-│       │       └── match1.html
+│       │   └── moss.html
 │       ├── ...
 │       ├── case_n/
 │       └── case_overview.csv
@@ -187,9 +183,8 @@ The final report contains a subdirectory for the MarkUs assignment.
 Within that directory is a case overview file with the details of each case reported by moss.
 There is a subdirectory for each case which contains the submission files for each group in both text and pdf formats.
 Each case also contains one group_data.csv file per group which contains information about each group.
-Each case also contains a moss_html subdirectory which contains html files extracted from the moss report for the
-specific case in question. This report can be viewed by opening the matchX.html file (where X is a single integer) in a 
-browser.
+Each case also contains a moss.html file which contains the moss report for the specific case in question. 
+This report can be viewed by opening the moss.html file in any web browser.
 
 ##### group_data.csv format
 

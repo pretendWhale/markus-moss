@@ -11,6 +11,7 @@ setuptools.setup(
     description="run moss plagiarism detector on MarkUs submissions",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    include_package_data=True,
     url="https://github.com/MarkUsProject/markus-moss",
     packages=setuptools.find_packages(),
     install_requires=["markusapi==0.2.1", "mosspy==1.0.8", "toml==0.10.2"],

@@ -9,15 +9,16 @@ def user_input(prompt, check, success=None, failure=None):
     while True:
         inp = input(prompt).strip()
         if check(inp):
-            if success:
+            if success is not None:
                 print(success)
             return inp
-        else:
+        elif failure is not None:
             print(failure)
 
 
 def choose_workdir():
-    if user_input('Would you like to write files in the current folder? [yn]', lambda x: x.lower() in 'yn') == 'y':
+    if user_input('Would you like to write files in the current folder? [yn]',
+                  lambda x: x and x.lower() in 'yn') == 'y':
         workdir = os.getcwd()
     else:
         workdir = user_input('Which directory would you like to use?',
@@ -32,13 +33,13 @@ def install_venv(workdir):
         subprocess.run(['python3', '-m', 'venv', f'{workdir}/venv'], check=True)
     if not os.path.isfile(os.path.join(workdir, 'venv', 'bin', 'markusmoss')):
         pip = os.path.join(workdir, 'venv', 'bin', 'pip')
-        subprocess.run([pip, 'install', 'git+https://github.com/MarkUsProject/markus-moss.git'], check=True)
+        subprocess.run([pip, 'install', 'wheel', 'git+https://github.com/MarkUsProject/markus-moss.git'], check=True)
     return os.path.join(workdir, 'venv', 'bin', 'markusmoss')
 
 
 def _update_conf_simple(conf, key, description, check=lambda x: x, failure=None):
     if conf.get(key):
-        if user_input(f'Reuse existing {description}?: {conf[key]}', lambda x: x.lower() in 'yn') == 'n':
+        if user_input(f'Reuse existing {description}?: {conf[key]}', lambda x: x and x.lower() in 'yn') == 'n':
             conf[key] = user_input(f'New {description}:', check)
     else:
         conf[key] = user_input(f'New {description}:', check, failure=failure)
@@ -48,7 +49,7 @@ def update_config_file(workdir):
     config_file = os.path.join(workdir, 'markusmossrc')
     if os.path.isfile(config_file):
         if user_input('A configuration file already exists. Do you want to update it? [yn]',
-                      lambda x: x.lower() in 'yn') == 'n':
+                      lambda x: x and x.lower() in 'yn') == 'n':
             return
     else:
         with open(config_file, 'w'):
@@ -86,13 +87,14 @@ def run_markusmoss(workdir, markusmoss):
         "write_final_report",
         "all"
     )
-    action = user_input('What do you want markusmoss to do?',
-                        check=lambda x, a=actions: x.lower() in a, failure=f"Choose from: {actions}")
+    actions = user_input('What do you want markusmoss to do?',
+                         check=lambda x, a=actions: x and all(y.lower() in a for y in x.split()),
+                         failure=f"Choose from: {actions}")
     force = user_input('Do you want to re-run this action if files already exist? [yn]',
-                       check=lambda x: x.lower() in 'yn') == 'y'
+                       check=lambda x: x and x.lower() in 'yn') == 'y'
     args = [markusmoss, '--config', os.path.join(workdir, 'markusmossrc'), '-v']
-    if action != "all":
-        args.extend(["--actions", action])
+    if 'all' not in actions:
+        args.extend(["--actions", *actions.split()])
     if force:
         args.append('-f')
     subprocess.run(args)

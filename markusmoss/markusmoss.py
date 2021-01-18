@@ -11,7 +11,7 @@ import markusapi
 import io
 import bs4
 import re
-from typing import Optional, ClassVar, Tuple, Iterable, Dict, Pattern, Iterator
+from typing import Optional, ClassVar, Tuple, Iterable, Dict, Pattern, Iterator, List
 
 
 class MarkusMoss:
@@ -45,6 +45,7 @@ class MarkusMoss:
         moss_report_url: Optional[str] = None,
         workdir: Optional[str] = None,
         language: Optional[str] = None,
+        groups: Optional[List[str]] = None,
         file_glob: str = "**/*",
         html_parser: str = "html.parser",
         force: bool = False,
@@ -53,6 +54,7 @@ class MarkusMoss:
         self.force = force
         self.verbose = verbose
         self.file_glob = file_glob
+        self.groups = groups
         self.html_parser = html_parser
         self.__group_data = None
         self.__membership_data = None
@@ -115,6 +117,7 @@ class MarkusMoss:
             self.moss.addBaseFile(filename, os.path.relpath(filename, self.workdir))
         self._print()
         submission_files = glob.glob(os.path.join(self.submission_files_dir, "*", self.file_glob), recursive=True)
+        print(submission_files)
         for i, filename in enumerate(submission_files):
             self._print(f"Sending submission files to MOSS {i+1}/{len(submission_files)}", end="\r")
             self.moss.addFile(filename, os.path.relpath(filename, self.workdir))
@@ -256,7 +259,10 @@ class MarkusMoss:
     @property
     def _group_data(self) -> Dict:
         if self.__group_data is None:
-            self.__group_data = self.api.get_groups(self._assignment_id)
+            group_data = self.api.get_groups(self._assignment_id)
+            if self.groups is not None:
+                group_data = [g for g in group_data if g['group_name'] in self.groups]
+            self.__group_data = group_data
         return self.__group_data
 
     @property
@@ -305,7 +311,7 @@ class MarkusMoss:
             short_ids.append(data.get("short_identifier"))
             if data.get("short_identifier") == self.markus_assignment:
                 return data["id"]
-        msg = f"No MarkUs assignment found with short identifier: ${self.markus_assignment}\noptions:{short_ids}"
+        msg = f"No MarkUs assignment found with short identifier: {self.markus_assignment}\noptions:{short_ids}"
         raise Exception(msg)
 
     def _get_group_membership_info(self) -> Dict:

@@ -36,6 +36,7 @@ Arguments can be specified on the command line or in a config file (see below).
 * --config : (string) config file (see format below) : default is `${PWD}/.markusmossrc`
 * --workdir : (string) working directory : default is `${PWD}`
 * --actions : (strings) actions (see below) : default is to run all actions in order 
+* --groups : (strings) only use the groups listed : default is to use all groups from the specified MarkUs assignment
 * --language : (strings) moss programming languages (see below)
 * --file-glob : (string) glob describing submission files to test with moss (see below): default is '\*\*/\*'
 * --html-parser : (string) bs4 html parser: default is 'html.parser'

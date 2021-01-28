@@ -14,7 +14,7 @@ setuptools.setup(
     include_package_data=True,
     url="https://github.com/MarkUsProject/markus-moss",
     packages=setuptools.find_packages(),
-    install_requires=["markusapi==0.2.1", "mosspy==1.0.8", "toml==0.10.2"],
+    install_requires=["markusapi==0.2.1", "mosspy==1.0.8", "toml==0.10.2", "html5lib==1.1"],
     tests_require=["pytest==5.3.1"],
     setup_requires=["pytest-runner"],
     entry_points={"console_scripts": "markusmoss=markusmoss.cli:cli"},

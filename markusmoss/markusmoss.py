@@ -8,6 +8,7 @@ import subprocess
 import zipfile
 import mosspy
 import markusapi
+import requests
 import io
 import bs4
 import re
@@ -47,7 +48,6 @@ class MarkusMoss:
         language: Optional[str] = None,
         groups: Optional[List[str]] = None,
         file_glob: str = "**/*",
-        html_parser: str = "html.parser",
         force: bool = False,
         verbose: bool = False,
     ) -> None:
@@ -55,7 +55,6 @@ class MarkusMoss:
         self.verbose = verbose
         self.file_glob = file_glob
         self.groups = groups
-        self.html_parser = html_parser
         self.__group_data = None
         self.__membership_data = None
         self.__assignment_id = None
@@ -117,7 +116,6 @@ class MarkusMoss:
             self.moss.addBaseFile(filename, os.path.relpath(filename, self.workdir))
         self._print()
         submission_files = glob.glob(os.path.join(self.submission_files_dir, "*", self.file_glob), recursive=True)
-        print(submission_files)
         for i, filename in enumerate(submission_files):
             self._print(f"Sending submission files to MOSS {i+1}/{len(submission_files)}", end="\r")
             self.moss.addFile(filename, os.path.relpath(filename, self.workdir))
@@ -129,11 +127,28 @@ class MarkusMoss:
         with open(self.moss_report_url_file, "w") as f:
             f.write(self.moss_report_url)
 
+    def _parse_url(self, url):
+        data = requests.get(url).content.decode()
+        return bs4.BeautifulSoup(data, features='html5lib')
+
+    def _moss_download(self, url, dest_dir):
+        parsed_html = self._parse_url(url)
+        with open(os.path.join(dest_dir, 'index.html'), 'w') as f:
+            f.write(str(parsed_html))
+        urls = {u for u in (a.attrs.get('href') for a in parsed_html.find_all('a')) if u.startswith(url)}
+        for url_ in urls:
+            parsed_html = self._parse_url(url_)
+            with open(os.path.join(dest_dir, os.path.basename(url_)), 'w') as f:
+                f.write(str(parsed_html))
+            for src_url in [f.attrs['src'] for f in parsed_html.find_all('frame')]:
+                with open(os.path.join(dest_dir, os.path.basename(src_url)), 'w') as f:
+                    f.write(str(self._parse_url(os.path.join(url, src_url))))
+
     def download_moss_report(self) -> None:
-        if not os.path.isdir(os.path.join(self.moss_report_dir, self.MOSS_REPORT_DOWNLOAD)) or self.force:
+        if not os.path.isdir(self.moss_report_download_dir) or self.force:
             self._print(f"Downloading MOSS report")
-            log_level = 10 if self.verbose else 0
-            mosspy.download_report(self.moss_report_url, self.moss_report_download_dir, log_level=log_level)
+            os.makedirs(self.moss_report_download_dir, exist_ok=True)
+            self._moss_download(self.moss_report_url, self.moss_report_download_dir)
 
     def write_final_report(self) -> None:
         assignment_report_dir = os.path.join(self.final_report_dir, self.markus_assignment)
@@ -351,12 +366,14 @@ class MarkusMoss:
 
     def _parse_html_report(self) -> Iterator[Tuple[str, str, str, int, int]]:
         with open(os.path.join(self.moss_report_download_dir, "index.html")) as f:
-            parsed_html = bs4.BeautifulSoup(f, features=self.html_parser)
+            parsed_html = bs4.BeautifulSoup(f, features='html5lib')
             for row in parsed_html.body.find("table").find_all("tr"):
                 if row.find("th"):
                     continue
                 submission1, submission2, lines = row.find_all("td")
-                match_file = os.path.join(self.moss_report_download_dir, submission1.find("a").get("href"))
+                match_file = os.path.join(
+                    self.moss_report_download_dir, os.path.basename(submission1.find("a").get("href"))
+                )
                 matched_lines = int(lines.string.strip())
                 group1, matched_file, similarity = re.match(self._report_regex, submission1.find("a").string).groups()
                 group2, _, _ = re.match(self._report_regex, submission2.find("a").string).groups()
@@ -404,16 +421,17 @@ class MarkusMoss:
         base_basename = os.path.basename(base)
         top = f"{base}-top.html"
         with open(os.path.join(os.path.dirname(__file__), 'templates', 'report_template.html')) as f:
-            template = bs4.BeautifulSoup(f, features=self.html_parser)
+            template = bs4.BeautifulSoup(f, features='html5lib')
         with open(base_html_file) as f:
-            base_html = bs4.BeautifulSoup(f, features=self.html_parser)
+            base_html = bs4.BeautifulSoup(f, features='html5lib')
             title = base_html.head.find("title").text
             template.head.find('title').string = title
         with open(top) as f:
-            top_html = bs4.BeautifulSoup(f, features=self.html_parser)
+            top_html = bs4.BeautifulSoup(f, features='html5lib')
             table = top_html.body.find("center")
             for a in table.find_all('a'):
-                match_file, match_num = re.match(rf'{base_basename}-([01])\.html#(\d+)', a["href"]).groups()
+                href = os.path.basename(a["href"])
+                match_file, match_num = re.match(rf'{base_basename}-([01])\.html#(\d+)', href).groups()
                 a["href"] = f"#match-{match_file}-{match_num}"
                 a["target"] = "_self"
             top_div = template.body.find('div', {"id": "top"})
@@ -421,7 +439,7 @@ class MarkusMoss:
         for match_i in range(2):
             match_file = f"{base}-{match_i}.html"
             with open(match_file) as f:
-                match_html = bs4.BeautifulSoup(f, features=self.html_parser)
+                match_html = bs4.BeautifulSoup(f, features='html5lib')
                 match_title = match_html.head.find("title").text
                 match_pre = match_html.body.find("pre")
                 for a in match_pre.find_all('a'):

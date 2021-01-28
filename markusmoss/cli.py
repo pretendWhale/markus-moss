@@ -9,9 +9,7 @@ DEFAULTRC = "markusmossrc"
 
 DEFAULTS = {
     "workdir": os.getcwd(),
-    "language": mosspy.Moss.languages,
     "file_glob": "**/*",
-    "html_parser": "html.parser"
 }
 
 
@@ -39,9 +37,8 @@ def _parse_args():
     parser.add_argument("--config", default=os.path.join(os.getcwd(), DEFAULTRC))
     parser.add_argument("--workdir")
     parser.add_argument("--actions", nargs="*", default=None, choices=MarkusMoss.ACTIONS)
-    parser.add_argument("--language")
+    parser.add_argument("--language", choices=mosspy.Moss.languages)
     parser.add_argument("--file-glob")
-    parser.add_argument("--html-parser")
     parser.add_argument("--groups", nargs="*", default=None)
     parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")

@@ -440,9 +440,8 @@ class MarkusMoss:
             match_file = f"{base}-{match_i}.html"
             with open(match_file) as f:
                 match_html = bs4.BeautifulSoup(f, features='html5lib')
-                match_title = match_html.head.find("title").text
-                match_pre = match_html.body.find("pre")
-                for a in match_pre.find_all('a'):
+                match_body = match_html.body
+                for a in match_body.find_all('a'):
                     if a.get("href"):
                         match_file, match_num = re.match(rf'{base_basename}-([01])\.html#(\d+)', a["href"]).groups()
                         a["href"] = f"#match-{match_file}-{match_num}"
@@ -451,9 +450,8 @@ class MarkusMoss:
                         a["id"] = f"match-{match_i}-{a['name']}"
             match_div = template.body.find('div', {"id": f"match-{match_i}"})
             file_title = template.new_tag('h3')
-            file_title.append(match_title)
             match_div.append(file_title)
-            match_div.append(match_pre)
+            match_div.append(match_body)
         with open(destination, 'w') as f:
             f.write(str(template))
 

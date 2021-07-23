@@ -65,6 +65,10 @@ moss_userid=123456789
 
 Note that the config file uses underscores instead of hyphens.
 
+Information about obtaining the `markus_api_key` and `markus_url` can be found here: https://github.com/MarkUsProject/Markus/wiki/RESTful-API#authentication
+
+Information about obtaining the `moss_userid` can be found here: http://moss.stanford.edu/
+
 #### actions
 
 * download_submission_files

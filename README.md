@@ -39,6 +39,8 @@ Arguments can be specified on the command line or in a config file (see below).
 * --groups : (strings) only use the groups listed : default is to use all groups from the specified MarkUs assignment
 * --language : (strings) moss programming languages (see below)
 * --file-glob : (string) glob describing submission files to test with moss (see below): default is '\*\*/\*'
+* --generate-config: (string) write a config file (see format below) to the path specified from all other arguments given.
+                              If no path is given to this flag, write to stdout. 
 * --html-parser : (string) bs4 html parser: default is 'html.parser'
 * --force : redo all specified actions: default is not to redo previously executed actions
 * --verbose : log actions to stdout

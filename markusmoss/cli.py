@@ -33,6 +33,7 @@ def _parse_args():
     parser.add_argument("--markus-api-key")
     parser.add_argument("--markus-url")
     parser.add_argument("--markus-assignment")
+    parser.add_argument("--markus-course")
     parser.add_argument("--moss-userid")
     parser.add_argument("--moss-report-url")
     parser.add_argument("--config", default=os.path.join(os.getcwd(), DEFAULTRC))

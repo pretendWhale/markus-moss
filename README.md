@@ -30,6 +30,7 @@ Arguments can be specified on the command line or in a config file (see below).
 * --help : show help message and exit
 * --markus-api-key : (string) markus api key
 * --markus-url : (string) markus url
+* --markus-course : (string) markus course short identifier
 * --markus-assignment : (string) markus assignment short identifier
 * --moss-userid : (integer) moss userid
 * --moss-report-url : (string) moss report url
@@ -79,6 +80,7 @@ Information about obtaining the `moss_userid` can be found here: http://moss.sta
         * workdir
         * markus-api-key
         * markus-url
+        * markus-course
         * markus-assignment
 * copy_files_to_pdf
     * Copy the files in the `submission_files` subdirectory to the `pdf_submission_files` subdirectory
@@ -95,6 +97,7 @@ Information about obtaining the `moss_userid` can be found here: http://moss.sta
         * workdir
         * markus-api-key
         * markus-url
+        * markus-course
         * markus-assignment
 * run_moss
     * Run moss checker on submission files and write url of moss report to `moss_report/report_url.txt`

@@ -42,6 +42,7 @@ class MarkusMoss:
         markus_api_key: Optional[str] = None,
         markus_url: Optional[str] = None,
         markus_assignment: Optional[str] = None,
+        markus_course: Optional[str] = None,
         moss_userid: Optional[int] = None,
         moss_report_url: Optional[str] = None,
         workdir: Optional[str] = None,
@@ -65,6 +66,8 @@ class MarkusMoss:
         self.__markus_api_key = markus_api_key
         self.__markus_url = markus_url
         self.__markus_assignment = markus_assignment
+        self.__markus_course = markus_course
+        self.__markus_course_id = None
         self.__moss_userid = moss_userid
         self.__moss_report_url = moss_report_url
         self.__workdir = workdir
@@ -83,7 +86,7 @@ class MarkusMoss:
             if os.path.isdir(destination) and not self.force:
                 continue
             self._print(f"Downloading submission files for group: {data['group_name']}")
-            zip_byte_stream = self.api.get_files_from_repo(self._assignment_id, data["id"], collected=True)
+            zip_byte_stream = self.api.get_files_from_repo(self._markus_course_id, self._assignment_id, data["id"], collected=True)
             if not isinstance(zip_byte_stream, bytes):
                 sys.stderr.write(f"[MARKUSAPI ERROR]{zip_byte_stream}\n")
                 sys.stderr.flush()
@@ -100,7 +103,7 @@ class MarkusMoss:
             if os.path.isdir(destination) and not self.force:
                 continue
             self._print(f"Downloading starter files for starter_group with id: {group_data['id']}")
-            zip_byte_stream = self.api.download_starter_file_entries(self._assignment_id, group_data["id"])
+            zip_byte_stream = self.api.download_starter_file_entries(self._markus_course_id, self._assignment_id, group_data["id"])
             if not isinstance(zip_byte_stream, bytes):
                 sys.stderr.write(f"[MARKUSAPI ERROR] {zip_byte_stream}\n")
                 sys.stderr.flush()
@@ -274,7 +277,7 @@ class MarkusMoss:
     @property
     def _group_data(self) -> Dict:
         if self.__group_data is None:
-            group_data = self.api.get_groups(self._assignment_id)
+            group_data = self.api.get_groups(self._markus_course_id, self._assignment_id)
             if self.groups is not None:
                 group_data = [g for g in group_data if g['group_name'] in self.groups]
             self.__group_data = group_data
@@ -293,9 +296,15 @@ class MarkusMoss:
         return self.__assignment_id
 
     @property
+    def _markus_course_id(self) -> str:
+        if self.__markus_course_id is None:
+            self.__markus_course_id = self._find_course_id()
+        return self.__markus_course_id
+
+    @property
     def _starter_file_groups(self) -> Dict:
         if self.__starter_file_groups is None:
-            self.__starter_file_groups = self.api.get_starter_file_groups(self._assignment_id)
+            self.__starter_file_groups = self.api.get_starter_file_groups(self._markus_course_id, self._assignment_id)
         return self.__starter_file_groups
 
     @property
@@ -321,12 +330,22 @@ class MarkusMoss:
 
     def _find_assignment_id(self) -> int:
         short_ids = []
-        assignment_data = self.api.get_assignments()
+        assignment_data = self.api.get_assignments(self._markus_course_id)
         for data in assignment_data:
             short_ids.append(data.get("short_identifier"))
             if data.get("short_identifier") == self.markus_assignment:
                 return data["id"]
         msg = f"No MarkUs assignment found with short identifier: {self.markus_assignment}\noptions:{short_ids}"
+        raise Exception(msg)
+
+    def _find_course_id(self) -> int:
+        short_ids = []
+        course_data = self.api.get_all_courses()
+        for data in course_data:
+            short_ids.append(data.get("name"))
+            if data.get("name") == self.__markus_course:
+                return data["id"]
+        msg = f"No MarkUs course found with name: {self.markus_course}\noptions:{short_ids}"
         raise Exception(msg)
 
     def _get_group_membership_info(self) -> Dict:

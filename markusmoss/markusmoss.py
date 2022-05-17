@@ -349,12 +349,12 @@ class MarkusMoss:
         raise Exception(msg)
 
     def _get_group_membership_info(self) -> Dict:
-        user_info = {u["id"]: {k: u.get(k) for k in self.USER_INFO} for u in self.api.get_all_users()}
+        user_info = {u["id"]: {k: u.get(k) for k in self.USER_INFO} for u in self.api.get_all_roles(self._markus_course_id)}
         members = collections.defaultdict(list)
         for data in self._group_data:
-            for user_id in (m["user_id"] for m in data["members"]):
-                user_info[user_id]["group_name"] = data["group_name"]
-                members[data["group_name"]].append(user_info[user_id])
+            for role_id in (m["role_id"] for m in data["members"]):
+                user_info[role_id]["group_name"] = data["group_name"]
+                members[data["group_name"]].append(user_info[role_id])
         return members
 
     def _copy_files_to_pdf(self, source_dir: str, dest_dir: str) -> None:

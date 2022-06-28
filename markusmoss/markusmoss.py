@@ -12,6 +12,7 @@ import requests
 import io
 import bs4
 import re
+import csv
 from typing import Optional, ClassVar, Tuple, Iterable, Dict, Pattern, Iterator, List
 
 
@@ -26,7 +27,7 @@ class MarkusMoss:
     FINAL_REPORT_DIR: ClassVar[str] = "final_report"
     FINAL_REPORT_CASE_OVERVIEW: ClassVar[str] = "case_overview.csv"
     OVERVIEW_INFO: ClassVar[Tuple[str]] = ("case", "groups", "similarity (%)", "matched_lines")
-    USER_INFO: ClassVar[Tuple[str]] = ("group_name", "user_name", "first_name", "last_name", "email", "id_number")
+    USER_INFO: ClassVar[Tuple[str]] = ("group_name", "user_name", "first_name", "last_name", "email", "id_number", "user_id")
     PRINT_PREFIX: ClassVar[str] = "[MARKUSMOSS]"
     ACTIONS: ClassVar[Tuple[str]] = (
         "download_submission_files",
@@ -51,6 +52,7 @@ class MarkusMoss:
         file_glob: str = "**/*",
         force: bool = False,
         verbose: bool = False,
+        markus_user_file: Optional[str] = None,
     ) -> None:
         self.force = force
         self.verbose = verbose
@@ -72,6 +74,7 @@ class MarkusMoss:
         self.__moss_report_url = moss_report_url
         self.__workdir = workdir
         self.__language = language
+        self.markus_user_file = markus_user_file
 
     def run(self, actions: Optional[Iterable[str]] = None) -> None:
         if actions is None:
@@ -349,10 +352,13 @@ class MarkusMoss:
         raise Exception(msg)
 
     def _get_group_membership_info(self) -> Dict:
-        user_info = {u["id"]: {k: u.get(k) for k in self.USER_INFO} for u in self.api.get_all_users()}
+        with open(self.markus_user_file) as f:
+            reader = csv.DictReader(f)
+            file_data = [row for row in reader]
+            user_info = {u["role_id"]: {k: u.get(k) for k in self.USER_INFO} for u in file_data}
         members = collections.defaultdict(list)
         for data in self._group_data:
-            for user_id in (m["user_id"] for m in data["members"]):
+            for user_id in (str(m["role_id"]) for m in data["members"]):
                 user_info[user_id]["group_name"] = data["group_name"]
                 members[data["group_name"]].append(user_info[user_id])
         return members
